@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "9:16"
+previewPath = "/freight-rate-pitch/"
+title = "Freight Rate Calculator — Sales Film"
+description = "A 30-second vertical sales animation showing how carrier costs inform freight quotes and rate negotiations for owner-operators, dispatchers and brokers."
+version = "1.0.0"
+id = "artifacts/freight-rate-pitch"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/freight-rate-pitch/" ]
+localPort = 23894
+
+[services.development]
+run = "pnpm --filter @workspace/freight-rate-pitch run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/freight-rate-pitch", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/freight-rate-pitch/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23894"
+BASE_PATH = "/freight-rate-pitch/"
