@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Freight Rate Calculator"
+description = "A standalone public SaaS app for trucking carriers to configure their operating costs, price freight estimates, email quotes, and compare actual shipment results—separate from any accounting ledger."
+version = "1.0.0"
+id = "artifacts/freight-rate-calculator"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19873
+
+[services.development]
+run = "pnpm --filter @workspace/freight-rate-calculator run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/freight-rate-calculator", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/freight-rate-calculator/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19873"
+BASE_PATH = "/"

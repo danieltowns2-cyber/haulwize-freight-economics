@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "WqSRxPdM-gWUf4eFX38KJ"
+uri = "file://artifacts/freight-rate-pitch/public/audio/bg_music.mp3"
+type = "audio"
+title = "Freight sales film soundtrack"
+description = "Generated music: Confident modern Americana-electronic instrumental background music for a trucking freight-cost SaaS sales film. Muted electric guitar riff, warm bass, tight restrained kick and snar…"

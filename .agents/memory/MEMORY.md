@@ -1,0 +1,2 @@
+- [Freight product boundaries](freight-product-boundaries.md) — standalone public app, no ledger; quotes send through users’ own Google or Microsoft mailboxes.
+- [Drizzle table filters and sequences](drizzle-filter-sequences.md) — `tablesFilter` does not exclude public sequences; preserve those owned by tables outside the filter.
