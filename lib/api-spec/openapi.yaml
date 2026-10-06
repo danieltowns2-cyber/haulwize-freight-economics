@@ -1,0 +1,837 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: workspace
+    description: Company profile and current membership
+  - name: cost-basis
+    description: Per-company operating cost configuration
+  - name: shipments
+    description: Freight estimates and actualized shipments
+  - name: market
+    description: Reference-only freight market benchmarks
+  - name: team
+    description: Company members and invitations
+  - name: admin
+    description: Platform administration
+  - name: integrations
+    description: Diesel, route planning, quote extraction, and email
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getCurrentProfile
+      tags: [workspace]
+      summary: Get the signed-in user and company context
+      responses:
+        "200":
+          description: Current account context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+  /companies:
+    post:
+      operationId: createCompany
+      tags: [workspace]
+      summary: Create a company and become its owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyInput"
+      responses:
+        "201":
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+  /company:
+    get:
+      operationId: getCompany
+      tags: [workspace]
+      summary: Get the selected company
+      responses:
+        "200":
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+    patch:
+      operationId: updateCompany
+      tags: [workspace]
+      summary: Update company profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyUpdate"
+      responses:
+        "200":
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+  /cost-basis:
+    get:
+      operationId: getCostBasis
+      tags: [cost-basis]
+      summary: Get the company's cost basis
+      responses:
+        "200":
+          description: Cost basis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostBasis"
+    put:
+      operationId: saveCostBasis
+      tags: [cost-basis]
+      summary: Save the company's cost basis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CostBasisInput"
+      responses:
+        "200":
+          description: Saved cost basis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostBasis"
+  /fuel-price:
+    get:
+      operationId: getFuelPrice
+      tags: [integrations]
+      summary: Get the latest cached EIA weekly diesel price
+      responses:
+        "200":
+          description: Diesel price and observation week
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FuelPrice"
+  /route-plan:
+    post:
+      operationId: planRoute
+      tags: [integrations]
+      summary: Geocode US stops and calculate road miles for each leg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutePlanInput"
+      responses:
+        "200":
+          description: Per-leg and loaded/deadhead road miles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutePlan"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [shipments]
+      summary: Get company shipment totals and monthly trend
+      responses:
+        "200":
+          description: Summary totals and trend data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /market-data:
+    get:
+      operationId: getMarketData
+      tags: [market]
+      summary: List dated reference market benchmarks
+      responses:
+        "200":
+          description: Reference benchmarks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketBenchmark"
+  /shipments:
+    get:
+      operationId: listShipments
+      tags: [shipments]
+      summary: List company estimates and actualized shipments
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Estimate, Actualized]
+        - in: query
+          name: dateFrom
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: dateTo
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Shipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Shipment"
+    post:
+      operationId: createShipment
+      tags: [shipments]
+      summary: Save a freight estimate with a frozen cost snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentInput"
+      responses:
+        "201":
+          description: Saved estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+  /shipments/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    get:
+      operationId: getShipment
+      tags: [shipments]
+      summary: Get shipment estimate or actuals
+      responses:
+        "200":
+          description: Shipment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+    patch:
+      operationId: updateShipment
+      tags: [shipments]
+      summary: Edit an estimate before actualizing it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentInput"
+      responses:
+        "200":
+          description: Updated estimate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+    delete:
+      operationId: deleteShipment
+      tags: [shipments]
+      summary: Delete an estimate or actualized shipment
+      responses:
+        "204":
+          description: Deleted
+  /shipments/{id}/actualize:
+    post:
+      operationId: actualizeShipment
+      tags: [shipments]
+      summary: Record actual shipment figures and lock estimate edits
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActualInput"
+      responses:
+        "200":
+          description: Actualized shipment with variances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Shipment"
+  /shipments/{id}/quote-email:
+    post:
+      operationId: emailQuote
+      tags: [integrations]
+      summary: Send a branded quote PDF to one or more recipients
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteEmailInput"
+      responses:
+        "202":
+          description: Quote accepted for delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailResult"
+  /mailbox-connections:
+    get:
+      operationId: listMailboxConnections
+      tags: [integrations]
+      summary: List this user's connected email mailboxes for the company
+      responses:
+        "200":
+          description: Connected mailboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MailboxConnection"
+  /mailbox-connections/{provider}/connect:
+    post:
+      operationId: startMailboxConnection
+      tags: [integrations]
+      summary: Start OAuth for this user's email account
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, microsoft]
+      responses:
+        "200":
+          description: Provider authorization URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailboxConnectResult"
+  /mailbox-connections/{provider}:
+    delete:
+      operationId: disconnectMailbox
+      tags: [integrations]
+      summary: Disconnect this user's mailbox
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, microsoft]
+      responses:
+        "204":
+          description: Disconnected
+  /team:
+    get:
+      operationId: listTeam
+      tags: [team]
+      summary: List company members and pending invitations
+      responses:
+        "200":
+          description: Company team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+  /team/invitations:
+    post:
+      operationId: inviteMember
+      tags: [team]
+      summary: Invite a teammate to the company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationInput"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+  /team/members/{id}:
+    patch:
+      operationId: updateMember
+      tags: [team]
+      summary: Change a teammate's role
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+    delete:
+      operationId: removeMember
+      tags: [team]
+      summary: Remove a teammate from the company
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Membership removed
+  /admin/companies:
+    get:
+      operationId: adminListCompanies
+      tags: [admin]
+      summary: Platform administrator list of companies
+      responses:
+        "200":
+          description: Companies and user counts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCompany"
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: Platform administrator list of users
+      responses:
+        "200":
+          description: Users and their company memberships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+  /admin/companies/{id}:
+    patch:
+      operationId: adminUpdateCompany
+      tags: [admin]
+      summary: Disable or re-enable a company
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyStatusUpdate"
+      responses:
+        "200":
+          description: Updated company status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+  /admin/market-data/{id}:
+    patch:
+      operationId: adminUpdateMarketData
+      tags: [admin]
+      summary: Edit a dated market reference benchmark
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarketBenchmarkUpdate"
+      responses:
+        "200":
+          description: Updated benchmark
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketBenchmark"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Profile:
+      type: object
+      required: [userId, email, company, role, isPlatformAdmin]
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        company:
+          oneOf:
+            - $ref: "#/components/schemas/Company"
+            - type: "null"
+        role:
+          type: ["string", "null"]
+          enum: [Owner, Editor, Viewer, null]
+        isPlatformAdmin: { type: boolean }
+    Company:
+      type: object
+      required: [id, name, mcNumber, dotNumber, isDisabled]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        mcNumber: { type: ["string", "null"] }
+        dotNumber: { type: ["string", "null"] }
+        isDisabled: { type: boolean }
+    CompanyInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        mcNumber: { type: string, maxLength: 40 }
+        dotNumber: { type: string, maxLength: 40 }
+    CompanyUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        mcNumber: { type: ["string", "null"], maxLength: 40 }
+        dotNumber: { type: ["string", "null"], maxLength: 40 }
+    FixedLine:
+      type: object
+      required: [id, name, monthlyAmount, note, position]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        monthlyAmount: { type: number, minimum: 0 }
+        note: { type: ["string", "null"] }
+        position: { type: integer }
+    VariableLine:
+      type: object
+      required: [id, name, amountPerMile, isFuel, position]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        amountPerMile: { type: number, minimum: 0 }
+        isFuel: { type: boolean }
+        position: { type: integer }
+    CostBasis:
+      type: object
+      required: [expectedMonthlyMiles, fixedLines, variableLines, fuelPriceMode, manualFuelPrice, dieselPrice, dieselWeek, averageMpg, factoringPercent, dispatchPercent, targetMarginPercent]
+      properties:
+        expectedMonthlyMiles: { type: number, minimum: 1 }
+        fixedLines:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/FixedLine" }
+        variableLines:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/VariableLine" }
+        fuelPriceMode: { type: string, enum: [national, manual] }
+        manualFuelPrice: { type: number, minimum: 0 }
+        dieselPrice: { type: ["number", "null"] }
+        dieselWeek: { type: ["string", "null"] }
+        averageMpg: { type: number, minimum: 0.1 }
+        factoringPercent: { type: number, minimum: 0, maximum: 99 }
+        dispatchPercent: { type: number, minimum: 0, maximum: 99 }
+        targetMarginPercent: { type: number, minimum: 0, maximum: 99 }
+    CostBasisInput:
+      allOf:
+        - $ref: "#/components/schemas/CostBasis"
+    FuelPrice:
+      type: object
+      required: [price, week, source, cachedAt]
+      properties:
+        price: { type: number }
+        week: { type: string }
+        source: { type: string }
+        cachedAt: { type: string, format: date-time }
+    Stop:
+      type: object
+      required: [id, kind, address, date]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [truck, pickup, drop] }
+        address: { type: string }
+        date: { type: ["string", "null"], format: date-time }
+    RoutePlanInput:
+      type: object
+      required: [stops]
+      properties:
+        stops:
+          type: array
+          minItems: 2
+          maxItems: 12
+          items: { $ref: "#/components/schemas/Stop" }
+    RouteLeg:
+      type: object
+      required: [from, to, miles, kind]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        miles: { type: number }
+        kind: { type: string, enum: [deadhead, loaded] }
+    RoutePlan:
+      type: object
+      required: [legs, loadedMiles, deadheadMiles, warning]
+      properties:
+        legs:
+          type: array
+          items: { $ref: "#/components/schemas/RouteLeg" }
+        loadedMiles: { type: number }
+        deadheadMiles: { type: number }
+        warning: { type: string }
+    ShipmentInput:
+      type: object
+      required: [reference, date, equipment, loadedMiles, deadheadMiles, reeferPerDay, reeferDays, extrasCost, targetMarginPercent, stops]
+      properties:
+        reference: { type: string, minLength: 1, maxLength: 120 }
+        date: { type: string, format: date }
+        equipment: { type: string, enum: [Dry Van, Reefer, Flatbed] }
+        loadedMiles: { type: number, minimum: 0 }
+        deadheadMiles: { type: number, minimum: 0 }
+        reeferPerDay: { type: number, minimum: 0 }
+        reeferDays: { type: number, minimum: 0 }
+        extrasCost: { type: number, minimum: 0 }
+        brokerOffer: { type: ["number", "null"], minimum: 0 }
+        targetMarginPercent: { type: number, minimum: 0, maximum: 99 }
+        stops:
+          type: array
+          maxItems: 12
+          items: { $ref: "#/components/schemas/Stop" }
+    Shipment:
+      type: object
+      required: [id, reference, date, equipment, loadedMiles, deadheadMiles, reeferPerDay, reeferDays, extrasCost, brokerOffer, targetMarginPercent, stops, status, snapshot, calculation, actual, createdAt]
+      properties:
+        id: { type: integer }
+        reference: { type: string }
+        date: { type: string, format: date }
+        equipment: { type: string, enum: [Dry Van, Reefer, Flatbed] }
+        loadedMiles: { type: number }
+        deadheadMiles: { type: number }
+        reeferPerDay: { type: number }
+        reeferDays: { type: number }
+        extrasCost: { type: number }
+        brokerOffer: { type: ["number", "null"] }
+        targetMarginPercent: { type: number }
+        stops:
+          type: array
+          items: { $ref: "#/components/schemas/Stop" }
+        status: { type: string, enum: [Estimate, Actualized] }
+        snapshot: { type: object, additionalProperties: true }
+        calculation: { type: object, additionalProperties: true }
+        actual:
+          type: ["object", "null"]
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+    ActualInput:
+      type: object
+      required: [revenue, totalMiles, extraCosts, variableLines]
+      properties:
+        revenue: { type: number, minimum: 0 }
+        totalMiles: { type: number, minimum: 0 }
+        extraCosts: { type: number, minimum: 0 }
+        variableLines:
+          type: array
+          items:
+            type: object
+            required: [id, name, amount]
+            properties:
+              id: { type: string }
+              name: { type: string }
+              amount: { type: number, minimum: 0 }
+    Dashboard:
+      type: object
+      required: [estimateCount, actualCount, actualRevenue, actualProfit, averageMarginPercent, trend]
+      properties:
+        estimateCount: { type: integer }
+        actualCount: { type: integer }
+        actualRevenue: { type: number }
+        actualProfit: { type: number }
+        averageMarginPercent: { type: number }
+        trend:
+          type: array
+          items:
+            type: object
+            required: [month, revenuePerMile, marginPercent]
+            properties:
+              month: { type: string }
+              revenuePerMile: { type: number }
+              marginPercent: { type: number }
+    MarketBenchmark:
+      type: object
+      required: [id, equipment, ratePerMile, label, source, asOf]
+      properties:
+        id: { type: integer }
+        equipment: { type: string, enum: [Dry Van, Reefer, Flatbed, ATRI Total, ATRI Excluding Fuel] }
+        ratePerMile: { type: number }
+        label: { type: string }
+        source: { type: string }
+        asOf: { type: string, format: date }
+    QuoteImport:
+      type: object
+      required: [draft, warnings]
+      properties:
+        draft: { $ref: "#/components/schemas/ShipmentInput" }
+        warnings:
+          type: array
+          items: { type: string }
+    QuoteEmailInput:
+      type: object
+      required: [recipients, subject, message]
+      properties:
+        recipients:
+          type: array
+          minItems: 1
+          items: { type: string, format: email }
+        subject: { type: string, minLength: 1, maxLength: 200 }
+        message: { type: string, maxLength: 5000 }
+    EmailResult:
+      type: object
+      required: [sent, message]
+      properties:
+        sent: { type: boolean }
+        message: { type: string }
+    MailboxConnection:
+      type: object
+      required: [provider, email, connectedAt]
+      properties:
+        provider: { type: string, enum: [google, microsoft] }
+        email: { type: string, format: email }
+        connectedAt: { type: string, format: date-time }
+    MailboxConnectResult:
+      type: object
+      required: [authUrl]
+      properties:
+        authUrl: { type: string, format: uri }
+    Member:
+      type: object
+      required: [id, userId, email, name, role, active]
+      properties:
+        id: { type: integer }
+        userId: { type: string }
+        email: { type: string, format: email }
+        name: { type: ["string", "null"] }
+        role: { type: string, enum: [Owner, Editor, Viewer] }
+        active: { type: boolean }
+    Invitation:
+      type: object
+      required: [id, email, role, createdAt, inviteUrl]
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        role: { type: string, enum: [Editor, Viewer] }
+        createdAt: { type: string, format: date-time }
+        inviteUrl: { type: string }
+    Team:
+      type: object
+      required: [members, invitations]
+      properties:
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/Member" }
+        invitations:
+          type: array
+          items: { $ref: "#/components/schemas/Invitation" }
+    InvitationInput:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string, format: email }
+        role: { type: string, enum: [Editor, Viewer] }
+    MemberUpdate:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [Editor, Viewer] }
+    AdminCompany:
+      type: object
+      required: [id, name, isDisabled, userCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        isDisabled: { type: boolean }
+        userCount: { type: integer }
+    AdminUser:
+      type: object
+      required: [userId, email, companyName, role, active]
+      properties:
+        userId: { type: string }
+        email: { type: string, format: email }
+        companyName: { type: string }
+        role: { type: string }
+        active: { type: boolean }
+    CompanyStatusUpdate:
+      type: object
+      required: [isDisabled]
+      properties:
+        isDisabled: { type: boolean }
+    MarketBenchmarkUpdate:
+      type: object
+      required: [ratePerMile, label, source, asOf]
+      properties:
+        ratePerMile: { type: number, minimum: 0 }
+        label: { type: string }
+        source: { type: string }
+        asOf: { type: string, format: date }
+
