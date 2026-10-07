@@ -27,7 +27,13 @@ import { apiPath as sameOriginApiPath } from '@/lib/api-config';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000, refetchOnWindowFocus: true } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const rawClerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Replit-managed Clerk: publishableKeyFromHost constructs the per-host key, but only
+// works on Replit hosts. Off Replit (e.g. GitHub Pages custom domain) use the raw key,
+// which points at the real Clerk Frontend API; traffic goes through the API proxy below.
+const clerkPubKey = window.location.hostname.endsWith('.replit.app')
+  ? publishableKeyFromHost(window.location.hostname, rawClerkKey)
+  : rawClerkKey;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in environment.');
 const money = (v: unknown) => Number.isFinite(Number(v)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(v)) : '—';
