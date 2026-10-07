@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Public authentication configuration
   - name: workspace
     description: Company profile and current membership
   - name: cost-basis
@@ -38,6 +40,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/config:
+    get:
+      operationId: getAuthConfig
+      tags: [auth]
+      summary: Get public authentication configuration
+      description: Returns the Clerk publishable key for initializing the browser SDK.
+      responses:
+        "200":
+          description: Public authentication configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthConfig"
+        "503":
+          description: Authentication is not configured
   /me:
     get:
       operationId: getCurrentProfile
@@ -519,6 +536,13 @@ components:
           type: string
       required:
         - status
+    AuthConfig:
+      type: object
+      properties:
+        publishableKey:
+          type: string
+      required:
+        - publishableKey
     Profile:
       type: object
       required: [userId, email, company, role, isPlatformAdmin]

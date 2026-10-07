@@ -18,6 +18,15 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Returns the Clerk publishable key for initializing the browser SDK.
+ * @summary Get public authentication configuration
+ */
+export const GetAuthConfigResponse = zod.object({
+  "publishableKey": zod.string()
+})
+
+
+/**
  * @summary Get the signed-in user and company context
  */
 export const GetCurrentProfileResponse = zod.object({

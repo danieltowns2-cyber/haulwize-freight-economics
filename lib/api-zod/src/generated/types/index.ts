@@ -10,6 +10,7 @@ export * from './actualInput';
 export * from './actualInputVariableLinesItem';
 export * from './adminCompany';
 export * from './adminUser';
+export * from './authConfig';
 export * from './company';
 export * from './companyInput';
 export * from './companyStatusUpdate';

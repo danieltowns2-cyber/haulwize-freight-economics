@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Link, Redirect, Route as WRoute, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
 import {
-  useActualizeShipment, useAdminListCompanies, useAdminListUsers, useAdminUpdateCompany,
+  getAuthConfig, useActualizeShipment, useAdminListCompanies, useAdminListUsers, useAdminUpdateCompany,
   useAdminUpdateMarketData, useCreateCompany, useCreateShipment, useDeleteShipment,
   useDisconnectMailbox, useEmailQuote, useGetCompany, useGetCostBasis, useGetCurrentProfile,
   useGetDashboard, useGetFuelPrice, useGetMarketData, useGetShipment, useInviteMember,
@@ -27,15 +27,20 @@ import { apiPath as sameOriginApiPath } from '@/lib/api-config';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000, refetchOnWindowFocus: true } } });
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const hostname = window.location.hostname;
 const rawClerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-// Replit-managed Clerk: publishableKeyFromHost constructs the per-host key, but only
-// works on Replit hosts. Off Replit (e.g. GitHub Pages custom domain) use the raw key,
-// which points at the real Clerk Frontend API; traffic goes through the API proxy below.
-const clerkPubKey = window.location.hostname.endsWith('.replit.app')
-  ? publishableKeyFromHost(window.location.hostname, rawClerkKey)
+const clerkPubKey = hostname.endsWith('.replit.app')
+  ? publishableKeyFromHost(hostname, rawClerkKey)
   : rawClerkKey;
+// GitHub Pages cannot receive Replit's production key at build time, so fetch the
+// public key from the Replit API for non-Replit production hosts.
+const useRuntimeClerkConfig =
+  !hostname.endsWith('.replit.app') &&
+  !hostname.endsWith('.replit.dev') &&
+  hostname !== 'localhost' &&
+  hostname !== '127.0.0.1';
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
-if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in environment.');
+if (!useRuntimeClerkConfig && !clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in environment.');
 const money = (v: unknown) => Number.isFinite(Number(v)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(v)) : '—';
 const num = (v: unknown) => Number.isFinite(Number(v)) ? new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(Number(v)) : '—';
 const errorText = (e: unknown) => {
@@ -182,13 +187,57 @@ function ClerkCacheSync() {
   }, [addListener, qc]);
   return null;
 }
-function ClerkRoutes() {
+function ClerkRoutes({ publishableKey }: { publishableKey: string }) {
   const [, setLocation] = useLocation();
-  return <ClerkProvider publishableKey={clerkPubKey} proxyUrl={clerkProxyUrl} appearance={appearance} signInUrl={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} localization={{signIn:{start:{title:'Welcome back',subtitle:'Pick up right where the numbers left off.'}},signUp:{start:{title:'Build your cost picture',subtitle:'A better load decision starts with your own numbers.'}}}} routerPush={(to) => setLocation(stripBase(to))} routerReplace={(to) => setLocation(stripBase(to), {replace:true})}>
+  return <ClerkProvider publishableKey={publishableKey} proxyUrl={clerkProxyUrl} appearance={appearance} signInUrl={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} localization={{signIn:{start:{title:'Welcome back',subtitle:'Pick up right where the numbers left off.'}},signUp:{start:{title:'Build your cost picture',subtitle:'A better load decision starts with your own numbers.'}}}} routerPush={(to) => setLocation(stripBase(to))} routerReplace={(to) => setLocation(stripBase(to), {replace:true})}>
     <QueryClientProvider client={queryClient}><ClerkCacheSync/><Switch><WRoute path="/" component={HomeRedirect}/><WRoute path="/sign-in/*?" component={SignInPage}/><WRoute path="/sign-up/*?" component={SignUpPage}/><WRoute><Show when="signed-in"><AuthenticatedApp/></Show><Show when="signed-out"><Redirect to="/"/></Show></WRoute></Switch></QueryClientProvider>
   </ClerkProvider>;
 }
-function App() { return <WouterRouter base={basePath}><ClerkRoutes/></WouterRouter>; }
+function App() {
+  const [runtimeKey, setRuntimeKey] = useState<string | null>(() =>
+    useRuntimeClerkConfig ? null : clerkPubKey ?? null,
+  );
+  const [runtimeKeyError, setRuntimeKeyError] = useState(false);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    if (!useRuntimeClerkConfig) return;
+
+    let active = true;
+    setRuntimeKey(null);
+    setRuntimeKeyError(false);
+    getAuthConfig()
+      .then(({ publishableKey }) => {
+        if (!publishableKey.startsWith('pk_live_')) {
+          throw new Error('The production Clerk key is not active.');
+        }
+        if (active) setRuntimeKey(publishableKey);
+      })
+      .catch(() => {
+        if (active) setRuntimeKeyError(true);
+      });
+
+    return () => { active = false; };
+  }, [retry]);
+
+  if (runtimeKeyError) {
+    return <main className="grain grid min-h-[100dvh] place-items-center bg-background px-5 py-10">
+      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h1 className="font-serif text-2xl font-extrabold">Sign-in is temporarily unavailable.</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">Haulwize could not load its production authentication settings. Please try again in a moment.</p>
+        <button type="button" onClick={() => setRetry(value => value + 1)} className="mt-5 rounded-lg bg-foreground px-4 py-2.5 text-sm font-bold text-background">Try again</button>
+      </section>
+    </main>;
+  }
+
+  if (!runtimeKey) {
+    return <div role="status" className="grain grid min-h-[100dvh] place-items-center bg-background text-sm text-muted-foreground">
+      <span className="flex items-center gap-2"><LoaderCircle className="animate-spin" size={16}/>Loading secure sign-in…</span>
+    </div>;
+  }
+
+  return <WouterRouter base={basePath}><ClerkRoutes publishableKey={runtimeKey}/></WouterRouter>;
+}
 
 function DashboardPage() {
   const dash = useGetDashboard();

@@ -9,6 +9,10 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface AuthConfig {
+  publishableKey: string;
+}
+
 /**
  * @nullable
  */
