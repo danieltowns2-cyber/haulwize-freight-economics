@@ -41,7 +41,10 @@ jobs:
           BASE_PATH: /
           NODE_ENV: production
           VITE_API_URL: https://trucking-rate-calculator-app.replit.app
+          # Clerk publishable key (public by design; override via repo secret if rotated)
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsudHJ1Y2tpbmctcmF0ZS1jYWxjdWxhdG9yLWFwcC5yZXBsaXQuYXBwJA' }}
+          # Route Clerk traffic through the API backend's Clerk proxy (required off-Replit)
+          VITE_CLERK_PROXY_URL: https://trucking-rate-calculator-app.replit.app/api/__clerk
 
       - name: SPA fallback and custom domain
         run: |
