@@ -195,13 +195,13 @@ function ClerkRoutes({ publishableKey }: { publishableKey: string }) {
 }
 function App() {
   const [runtimeKey, setRuntimeKey] = useState<string | null>(() =>
-    useRuntimeClerkConfig ? null : clerkPubKey ?? null,
+    clerkPubKey ?? null,
   );
   const [runtimeKeyError, setRuntimeKeyError] = useState(false);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    if (!useRuntimeClerkConfig) return;
+    if (clerkPubKey) return;
 
     let active = true;
     setRuntimeKey(null);
